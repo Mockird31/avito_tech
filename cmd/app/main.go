@@ -1,7 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"log"
+
+	"github.com/Mockird31/avito_tech/config"
+	"github.com/Mockird31/avito_tech/internal/app"
+)
 
 func main() {
-	fmt.Println("Hello World")
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Config error: %s", err)
+	}
+
+	app.Run(cfg)
 }

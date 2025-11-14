@@ -28,7 +28,16 @@ go.work.sum
 .env
 
 # Editor/IDE
- .idea/
- .vscode/
+.idea/
+.vscode/
 
- .DS_Store
+.DS_Store
+
+dbeaver_test/
+
+coverage_percent.txt
+coverage.html
+coverage.out
+coverage.tmp
+
+mocks/
