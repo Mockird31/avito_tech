@@ -15,4 +15,5 @@ type IRepository interface {
 	CheckUserExistById(ctx context.Context, userId string) (bool, error)
 	GetUserById(ctx context.Context, userId string) (*entity.User, error)
 	FindReviewers(ctx context.Context, authorId string) ([]string, error)
+	FindNewReviewer(ctx context.Context, prId string, authorId string, oldReviewerId string) (string, error)
 }

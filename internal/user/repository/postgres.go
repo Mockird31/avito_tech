@@ -67,6 +67,21 @@ const (
         ORDER BY random()
         LIMIT 2;
     `
+	FindNewReviewerQuery = `
+        SELECT u.id
+        FROM "user" u
+        WHERE u.team_name = (SELECT team_name FROM "user" WHERE id = $1)
+          AND u.id <> $1
+          AND u.id <> $3
+          AND u.is_active = TRUE
+          AND u.id NOT IN (
+              SELECT reviewer_id
+              FROM pull_request_reviewers
+              WHERE pull_request_id = $2
+          )
+        ORDER BY random()
+        LIMIT 1;
+    `
 )
 
 type repository struct {
@@ -292,4 +307,21 @@ func (r *repository) FindReviewers(ctx context.Context, authorId string) ([]stri
 	}
 
 	return reviewersIds, nil
+}
+
+func (r *repository) FindNewReviewer(ctx context.Context, prId, authorId, oldReviewerId string) (string, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	var reviewerId string
+	err := r.db.QueryRowContext(ctx, FindNewReviewerQuery, authorId, prId, oldReviewerId).Scan(&reviewerId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info("no available reviewer (FindNewReviewer)", zap.String("pr_id", prId), zap.String("author_id", authorId), zap.String("exclude_user_id", oldReviewerId))
+			return "", nil
+		}
+		logger.Error("failed to find new reviewer (FindNewReviewer)", zap.Error(err))
+		return "", err
+	}
+
+	return reviewerId, nil
 }

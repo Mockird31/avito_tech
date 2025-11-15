@@ -16,3 +16,13 @@ type UserResponse struct {
 type PullRequestResponse struct {
 	PullRequest *PullRequest `json:"pr"`
 }
+
+type PullRequestReassignResponse struct {
+	PullRequest *PullRequest `json:"pr"`
+	ReplacedBy  string       `json:"replaced_by"`
+}
+
+type ReviewerPullRequests struct {
+	UserId       string         `json:"user_id"`
+	PullRequests []*PullRequestShort `json:"pull_requests"`
+}

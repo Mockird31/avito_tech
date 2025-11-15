@@ -25,5 +25,7 @@ func PullRequestRouter(r *mux.Router, postgresConn *sql.DB) *mux.Router {
 
 	sr := r.PathPrefix("/pullRequest").Subrouter()
 	sr.HandleFunc("/create", prHttp.CreatePullRequest).Methods(http.MethodPost)
+	sr.HandleFunc("/merge", prHttp.MergePullRequest).Methods(http.MethodPost)
+	sr.HandleFunc("/reassign", prHttp.ReassignPullRequest).Methods(http.MethodPost)
 	return sr
 }

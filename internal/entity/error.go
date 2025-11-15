@@ -9,4 +9,6 @@ var (
 	ErrUserNotFound         = errors.New("resource not found")
 	ErrPullRequestExist     = errors.New("PR id already exists")
 	ErrAuthorOrTeamNotExist = errors.New("resource not found")
+	ErrPullRequestNotExist  = errors.New("resource not found")
+	ErrRequestAlreadyMerged = errors.New("cannot reassign on merged PR")
 )

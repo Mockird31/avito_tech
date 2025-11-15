@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -30,7 +31,14 @@ func (h *Handler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(addTeamRequest.TeamName)
 	resultTeam, err := h.usecase.AddTeam(ctx, &addTeamRequest)
 	if err != nil {
-		json.WriteErrorJson(w, http.StatusNotFound, err.Error())
+		var statusCode int
+		switch {
+		case errors.Is(err, entity.ErrTeamNameExist):
+			statusCode = http.StatusNotFound
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		json.WriteErrorJson(w, statusCode, err.Error())
 		return
 	}
 
@@ -48,7 +56,14 @@ func (h *Handler) GetTeam(w http.ResponseWriter, r *http.Request) {
 
 	resultTeam, err := h.usecase.GetTeam(ctx, teamName)
 	if err != nil {
-		json.WriteErrorJson(w, http.StatusNotFound, "NOT_FOUND")
+		var statusCode int
+		switch {
+		case errors.Is(err, entity.ErrTeamNameNotFound):
+			statusCode = http.StatusNotFound
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		json.WriteErrorJson(w, statusCode, err.Error())
 		return
 	}
 

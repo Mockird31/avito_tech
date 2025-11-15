@@ -8,4 +8,5 @@ import (
 
 type IUsecase interface {
 	SetIsActive(ctx context.Context, userUpdateActive *entity.UserUpdateActive) (*entity.User, error)
+	GetUserReview(ctx context.Context, userId string) ([]*entity.PullRequestShort, string, error)
 }

@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/Mockird31/avito_tech/internal/entity"
@@ -31,9 +32,42 @@ func (h *Handler) SetUserIsActive(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.usecase.SetIsActive(ctx, &userActiveRequest)
 	if err != nil {
-		json.WriteErrorJson(w, http.StatusNotFound, "resource not found")
+		var statusCode int
+		switch {
+		case errors.Is(err, entity.ErrUserNotFound):
+			statusCode = http.StatusNotFound
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+		json.WriteErrorJson(w, statusCode, err.Error())
 		return
 	}
 
 	json.WriteJSON(w, http.StatusOK, &entity.UserResponse{User: user}, nil)
+}
+
+func (h *Handler) GetUserReviews(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userId := r.URL.Query().Get("user_id")
+	if userId == "" {
+		json.WriteErrorJson(w, http.StatusNotFound, "NOT_FOUND")
+		return
+	}
+
+	pullRequests, userId, err := h.usecase.GetUserReview(ctx, userId)
+	if err != nil {
+		var statusCode int
+		switch {
+		case errors.Is(err, entity.ErrUserNotFound):
+			statusCode = http.StatusNotFound
+		default:
+			statusCode = http.StatusInternalServerError
+		}
+
+		json.WriteErrorJson(w, statusCode, err.Error())
+		return
+	}
+
+	json.WriteJSON(w, http.StatusOK, &entity.ReviewerPullRequests{UserId: userId, PullRequests: pullRequests}, nil)
 }

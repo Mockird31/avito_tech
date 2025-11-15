@@ -2,11 +2,11 @@ package entity
 
 import "time"
 
-type StatusPr int
+type StatusPr string
 
 const (
-	StatusOpen StatusPr = iota
-	StatusMerged
+	StatusOpen   StatusPr = "OPEN"
+	StatusMerged StatusPr = "MERGED"
 )
 
 func (sp StatusPr) String() string {
@@ -26,4 +26,17 @@ type PullRequest struct {
 	Status               string     `json:"status"`
 	AssignedReviewersIds []string   `json:"assigned_reviewers"`
 	MergedAt             *time.Time `json:"mergedAt,omitempty"`
+}
+
+type PullRequestShort struct {
+	Id       string     `json:"pull_request_id"`
+	PrName   string     `json:"pull_request_name"`
+	AuthorId string     `json:"author_id"`
+	Status   string     `json:"status"`
+	MergedAt *time.Time `json:"mergedAt,omitempty"`
+}
+
+type PullRequestReassignRequest struct {
+	Id            string `json:"pull_request_id"`
+	OldReviewerId string `json:"old_reviewer_id"`
 }

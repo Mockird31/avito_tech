@@ -26,7 +26,7 @@ const (
 	`
 	GetReviewersByPrId = `
 		SELECT u.id
-		FROM "user"
+		FROM "user" u
 		JOIN pull_request_reviewers prr ON prr.reviewer_id = u.id
 		WHERE prr.pull_request_id = $1;
 	`
@@ -35,6 +35,33 @@ const (
 		(id, name, author_id, status)
 		VALUES ($1, $2, $3, $4);
 	`
+	MergePullRequestQuery = `
+		UPDATE pull_request
+		SET status = 'MERGED', merged_at = NOW()
+		WHERE id = $1;
+	`
+	CheckPullRequestIsMergedByIdQuery = `
+		SELECT status
+		FROM pull_request
+		WHERE id = $1 
+	`
+	GetAuthorIdByPRIdQuery = `
+        SELECT author_id
+        FROM pull_request
+        WHERE id = $1;
+    `
+	UpdateReviewerIdQuery = `
+		UPDATE pull_request_reviewers
+		SET reviewer_id = $1
+		WHERE pull_request_id = $2 AND reviewer_id = $3;
+	`
+	GetPullRequestsByReviewerIdQuery = `
+        SELECT p.id, p.name, p.author_id, p.status, p.merged_at
+        FROM pull_request p
+        JOIN pull_request_reviewers prr ON prr.pull_request_id = p.id
+        WHERE prr.reviewer_id = $1
+        ORDER BY p.created_at DESC;
+    `
 )
 
 type repository struct {
@@ -187,4 +214,105 @@ func (r *repository) ConnectReviewersWithPullRequest(ctx context.Context, prId s
 	}
 
 	return nil
+}
+
+func (r *repository) MergePullRequest(ctx context.Context, prId string) error {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	_, err := r.db.ExecContext(ctx, MergePullRequestQuery, prId)
+	if err != nil {
+		logger.Error("failed to merge pull request (MergePullRequest)", zap.Error(err), zap.String("pr_id", prId))
+		return err
+	}
+	return nil
+}
+
+func (r *repository) CheckPullRequestIsMergedById(ctx context.Context, prId string) (bool, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	var status string
+
+	err := r.db.QueryRowContext(ctx, CheckPullRequestIsMergedByIdQuery, prId).Scan(&status)
+	if err != nil {
+		logger.Error("failed to get merged info about pr", zap.Error(err), zap.String("pr_id", prId))
+		return false, err
+	}
+
+	if status == "OPEN" {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (r *repository) GetAuthorIdByPRId(ctx context.Context, prId string) (string, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	var authorId string
+	err := r.db.QueryRowContext(ctx, GetAuthorIdByPRIdQuery, prId).Scan(&authorId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info("author not found (GetAuthorIdByPRId)", zap.String("pr_id", prId))
+			return "", sql.ErrNoRows
+		}
+		logger.Error("failed to get author id by pr id (GetAuthorIdByPRId)", zap.Error(err), zap.String("pr_id", prId))
+		return "", err
+	}
+	return authorId, nil
+}
+
+func (r *repository) UpdateReviewerId(ctx context.Context, prId string, oldReviewerId string, newReviewerId string) error {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	_, err := r.db.ExecContext(ctx, UpdateReviewerIdQuery, newReviewerId, prId, oldReviewerId)
+	if err != nil {
+		logger.Error("failed to update reviewer", zap.String("pr_id", prId), zap.String("old_reviewer", oldReviewerId), zap.String("new_reviewer", newReviewerId))
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) GetPullRequestsByReviewerId(ctx context.Context, reviewerId string) ([]*entity.PullRequestShort, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	rows, err := r.db.QueryContext(ctx, GetPullRequestsByReviewerIdQuery, reviewerId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info("pr's by reviewer_id not found", zap.String("reviewer_id", reviewerId))
+			return []*entity.PullRequestShort{}, nil
+		}
+		logger.Error("failed to get PRs by reviewer", zap.String("reviewer_id", reviewerId), zap.Error(err))
+		return nil, err
+	}
+
+	defer func() {
+		closeErr := rows.Close()
+		if closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	pullRequests := make([]*entity.PullRequestShort, 0)
+
+	for rows.Next() {
+		var pr entity.PullRequestShort
+		var mergedAt sql.NullTime
+		if err := rows.Scan(&pr.Id, &pr.PrName, &pr.AuthorId, &pr.Status, &mergedAt); err != nil {
+			logger.Error("scan error (GetPullRequestsByReviewerId)", zap.Error(err))
+			return nil, err
+		}
+
+		if mergedAt.Valid {
+			pr.MergedAt = &mergedAt.Time
+		}
+		pullRequests = append(pullRequests, &pr)
+	}
+
+	if err := rows.Err(); err != nil {
+		logger.Error("rows iterate error (GetPullRequestsByReviewerId)", zap.Error(err))
+		return nil, err
+	}
+
+	return pullRequests, nil
 }

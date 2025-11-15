@@ -8,6 +8,7 @@ import (
 	"github.com/Mockird31/avito_tech/internal/team"
 	"github.com/Mockird31/avito_tech/internal/user"
 	loggerPkg "github.com/Mockird31/avito_tech/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type Usecase struct {
@@ -49,7 +50,7 @@ func (u *Usecase) CreatePullRequest(ctx context.Context, pullRequestCreate *enti
 	}
 
 	if isExist {
-		logger.Error("pull request with id is exist (CreatePullRequest)", "pr_id", pullRequestCreate.Id)
+		logger.Error("pull request with id is exist (CreatePullRequest)", zap.String("pr_id", pullRequestCreate.Id))
 		return nil, entity.ErrPullRequestExist
 	}
 
@@ -98,4 +99,100 @@ func (u *Usecase) CreatePullRequest(ctx context.Context, pullRequestCreate *enti
 		AssignedReviewersIds: reviewersIds,
 	}
 	return pullRequest, nil
+}
+
+func (u *Usecase) MergePullRequest(ctx context.Context, pullRequestMerge *entity.PullRequest) (*entity.PullRequest, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	isExist, err := u.PRRepository.CheckPullRequestExistById(ctx, pullRequestMerge.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isExist {
+		logger.Error("pull request with id is not exist (MergePullRequest)", zap.Error(err), zap.String("pr_id", pullRequestMerge.Id))
+		return nil, entity.ErrPullRequestNotExist
+	}
+
+	isMerged, err := u.PRRepository.CheckPullRequestIsMergedById(ctx, pullRequestMerge.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isMerged {
+		err := u.PRRepository.MergePullRequest(ctx, pullRequestMerge.Id)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	pullRequest, err := u.GetPullRequestById(ctx, pullRequestMerge.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	return pullRequest, nil
+}
+
+func (u *Usecase) ReassignPullRequest(ctx context.Context, pullRequestReassign *entity.PullRequestReassignRequest) (*entity.PullRequest, string, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	isExist, err := u.PRRepository.CheckPullRequestExistById(ctx, pullRequestReassign.Id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if !isExist {
+		logger.Error("pull request with id is not exist (ReassignPullRequest)", zap.Error(err), zap.String("pr_id", pullRequestReassign.Id))
+		return nil, "", entity.ErrPullRequestNotExist
+	}
+
+	isOldReviewerExist, err := u.UserRepository.CheckUserExistById(ctx, pullRequestReassign.OldReviewerId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if !isOldReviewerExist {
+		return nil, "", entity.ErrUserNotFound
+	}
+
+	isMerged, err := u.PRRepository.CheckPullRequestIsMergedById(ctx, pullRequestReassign.Id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if isMerged {
+		return nil, "", entity.ErrRequestAlreadyMerged
+	}
+
+	authorId, err := u.PRRepository.GetAuthorIdByPRId(ctx, pullRequestReassign.Id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	newReviewerId, err := u.UserRepository.FindNewReviewer(ctx, pullRequestReassign.Id, authorId, pullRequestReassign.OldReviewerId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if newReviewerId == "" {
+		logger.Info("no available reviewer (ReassignPullRequest)")
+		pullRequest, err := u.GetPullRequestById(ctx, pullRequestReassign.Id)
+		if err != nil {
+			return nil, "", err
+		}
+		return pullRequest, "", nil
+	}
+
+	err = u.PRRepository.UpdateReviewerId(ctx, pullRequestReassign.Id, pullRequestReassign.OldReviewerId, newReviewerId)
+	if err != nil {
+		return nil, "", err
+	}
+
+	pullRequest, err := u.GetPullRequestById(ctx, pullRequestReassign.Id)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return pullRequest, newReviewerId, nil
 }
