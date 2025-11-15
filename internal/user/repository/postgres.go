@@ -30,6 +30,43 @@ const (
 		FROM "user"
 		WHERE team_name = $1;
 	`
+	UpdateUserActiveQuery = `
+		UPDATE "user"
+		SET is_active = $1
+		WHERE id = $2;
+	`
+	CheckUserExistByIdQuery = `
+		SELECT 1
+		FROM "user"
+		WHERE id = $1;
+	`
+	GetUserByIdQuery = `
+		SELECT id, username, team_name, is_active
+		FROM "user"
+		WHERE id = $1;
+	`
+	// FindReviewersQuery = `
+	//     WITH sampled AS (
+	// 		SELECT id, team_name, is_active
+	// 		FROM "user" TABLESAMPLE SYSTEM_ROWS (50)
+	// 	)
+	// 	SELECT s.id
+	// 	FROM sampled s
+	// 	JOIN "user" author ON author.id = $1
+	// 	WHERE s.team_name = author.team_name
+	// 	AND s.id <> $1
+	// 	AND s.is_active = TRUE
+	// 	LIMIT 2;
+	// `
+	FindReviewersQuery = `
+        SELECT u.id
+        FROM "user" u
+        WHERE u.team_name = (SELECT team_name FROM "user" WHERE id = $1)
+          AND u.id <> $1
+          AND u.is_active = TRUE
+        ORDER BY random()
+        LIMIT 2;
+    `
 )
 
 type repository struct {
@@ -177,4 +214,82 @@ func (r *repository) GetMembersByTeamName(ctx context.Context, teamName string) 
 	}
 
 	return teamMembers, nil
+}
+
+func (r *repository) CheckUserExistById(ctx context.Context, userId string) (bool, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+	var isExist bool
+	err := r.db.QueryRowContext(ctx, CheckUserExistByIdQuery, userId).Scan(&isExist)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info("user not found (CheckUserExistById)", zap.String("user_id", userId))
+			return isExist, nil
+		}
+		logger.Error("failed to check user exist by id (CheckUserExistById)", zap.Error(err))
+		return isExist, err
+	}
+	return isExist, nil
+}
+
+func (r *repository) SetIsActive(ctx context.Context, userId string, isActive bool) error {
+	logger := loggerPkg.LoggerFromContext(ctx)
+	_, err := r.db.ExecContext(ctx, UpdateUserActiveQuery, isActive, userId)
+	if err != nil {
+		logger.Error("failed to update user is_active (SetIsActive)", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (r *repository) GetUserById(ctx context.Context, userId string) (*entity.User, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	var user entity.User
+
+	err := r.db.QueryRowContext(ctx, GetUserByIdQuery, userId).Scan(&user.UserId, &user.Username, &user.TeamName, &user.IsActive)
+	if err != nil {
+		logger.Error("failed to get user by id (GetUserById)", zap.Error(err))
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (r *repository) FindReviewers(ctx context.Context, authorId string) ([]string, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	rows, err := r.db.QueryContext(ctx, FindReviewersQuery, authorId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info("reviewers not found (FindReviewers)", "author_id", authorId)
+			return []string{}, nil
+		}
+		logger.Error("failed to get reviewers (FindReviewers)", zap.Error(err))
+		return nil, err
+	}
+
+	defer func() {
+		closeErr := rows.Close()
+		if closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	reviewersIds := make([]string, 0)
+	for rows.Next() {
+		var reviewerId string
+		err := rows.Scan(&reviewerId)
+		if err != nil {
+			logger.Error("failed to scan reviewer id (FindReviewers)", zap.Error(err))
+			return nil, err
+		}
+		reviewersIds = append(reviewersIds, reviewerId)
+	}
+
+	if err = rows.Err(); err != nil {
+		logger.Error("failed while iterate through rows (FindReviewers)", zap.Error(err))
+		return nil, err
+	}
+
+	return reviewersIds, nil
 }

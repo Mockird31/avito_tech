@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS pull_request (
     name TEXT NOT NULL,
     author_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
     status TEXT NOT NULL CHECK (status IN ('OPEN', 'MERGED')),
-    need_more_reviewers BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     merged_at TIMESTAMPTZ DEFAULT NULL
 );

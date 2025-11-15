@@ -7,6 +7,8 @@ import (
 	"log"
 	"maps"
 	"net/http"
+
+	"github.com/Mockird31/avito_tech/internal/entity"
 )
 
 const (
@@ -54,5 +56,9 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}, headers http
 }
 
 func WriteErrorJson(w http.ResponseWriter, status int, errorMessage string) {
-	WriteJSON(w, status, errorMessage, nil)
+	errorResponse := &entity.ErrorResponse{
+		Code: status,
+		Message: errorMessage,
+	}
+	WriteJSON(w, status, errorResponse, nil)
 }

@@ -47,6 +47,8 @@ func Run(cfg *config.Config) {
 	r.Use(middleware.LoggerMiddleware(logger))
 
 	appRouter.TeamRouter(r, postgresConn)
+	appRouter.UserRouter(r, postgresConn)
+	appRouter.PullRequestRouter(r, postgresConn)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),

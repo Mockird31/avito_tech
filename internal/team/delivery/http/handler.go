@@ -34,7 +34,7 @@ func (h *Handler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.WriteJSON(w, http.StatusCreated, resultTeam, nil)
+	json.WriteJSON(w, http.StatusCreated, &entity.TeamResponse{Team: resultTeam}, nil)
 }
 
 func (h *Handler) GetTeam(w http.ResponseWriter, r *http.Request) {
