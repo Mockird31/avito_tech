@@ -16,4 +16,8 @@ type IRepository interface {
 	GetUserById(ctx context.Context, userId string) (*entity.User, error)
 	FindReviewers(ctx context.Context, authorId string) ([]string, error)
 	FindNewReviewer(ctx context.Context, prId string, authorId string, oldReviewerId string) (string, error)
+	GetUsersByIds(ctx context.Context, userIds []string) (map[string]*entity.User, error)
+
+	FindNewReviewerExcluding(ctx context.Context, prId string, authorId string, excludeUserIDs []string) (string, error)
+	UpdateUsersIsActiveByIds(ctx context.Context, ids []string, isActive bool) error
 }

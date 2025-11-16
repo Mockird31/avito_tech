@@ -11,4 +11,5 @@ var (
 	ErrAuthorOrTeamNotExist = errors.New("resource not found")
 	ErrPullRequestNotExist  = errors.New("resource not found")
 	ErrRequestAlreadyMerged = errors.New("cannot reassign on merged PR")
+	ErrUsersNotSameTeam     = errors.New("users not in the same team")
 )

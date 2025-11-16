@@ -22,7 +22,7 @@ const (
 	`
 	UpdateUsersTeamQuery = `
 		UPDATE "user"
-		SET team_name = $1
+		SET team_name = $1, updated_at = NOW()
 		WHERE id = ANY($2);
 	`
 	GetMembersByTeamNameQuery = `
@@ -32,7 +32,7 @@ const (
 	`
 	UpdateUserActiveQuery = `
 		UPDATE "user"
-		SET is_active = $1
+		SET is_active = $1, updated_at = NOW()
 		WHERE id = $2;
 	`
 	CheckUserExistByIdQuery = `
@@ -61,6 +61,31 @@ const (
           AND u.id <> $1
           AND u.id <> $3
           AND u.is_active = TRUE
+          AND u.id NOT IN (
+              SELECT reviewer_id
+              FROM pull_request_reviewers
+              WHERE pull_request_id = $2
+          )
+        ORDER BY random()
+        LIMIT 1;
+    `
+	GetUsersByIdsQuery = `
+        SELECT id, username, team_name, is_active
+        FROM "user"
+        WHERE id = ANY($1);
+    `
+	UpdateUsersIsActiveByIdsQuery = `
+        UPDATE "user"
+        SET is_active = $1, updated_at = NOW()
+        WHERE id = ANY($2);
+    `
+	FindNewReviewerExcludingQuery = `
+        SELECT u.id
+        FROM "user" u
+        WHERE u.team_name = (SELECT team_name FROM "user" WHERE id = $1)
+          AND u.id <> $1
+          AND u.is_active = TRUE
+          AND NOT (u.id = ANY($3))
           AND u.id NOT IN (
               SELECT reviewer_id
               FROM pull_request_reviewers
@@ -274,6 +299,7 @@ func (r *repository) FindReviewers(ctx context.Context, authorId string) ([]stri
 		closeErr := rows.Close()
 		if closeErr != nil && err == nil {
 			err = closeErr
+			logger.Error("failed to close rows", zap.Error(err))
 		}
 	}()
 
@@ -310,5 +336,65 @@ func (r *repository) FindNewReviewer(ctx context.Context, prId, authorId, oldRev
 		return "", err
 	}
 
+	return reviewerId, nil
+}
+
+func (r *repository) GetUsersByIds(ctx context.Context, userIds []string) (map[string]*entity.User, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	rows, err := r.db.QueryContext(ctx, GetUsersByIdsQuery, pq.Array(userIds))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return map[string]*entity.User{}, nil
+		}
+		logger.Error("failed to get users by ids (GetUsersByIds)", zap.Error(err))
+		return nil, err
+	}
+	defer func() {
+		if cerr := rows.Close(); cerr != nil && err == nil {
+			err = cerr
+			logger.Error("failed to close rows (GetUsersByIds)", zap.Error(err))
+		}
+	}()
+
+	res := make(map[string]*entity.User, len(userIds))
+	for rows.Next() {
+		var u entity.User
+		if err := rows.Scan(&u.UserId, &u.Username, &u.TeamName, &u.IsActive); err != nil {
+			logger.Error("scan error (GetUsersByIds)", zap.Error(err))
+			return nil, err
+		}
+		res[u.UserId] = &u
+	}
+	if err := rows.Err(); err != nil {
+		logger.Error("rows iterate error (GetUsersByIds)", zap.Error(err))
+		return nil, err
+	}
+	return res, nil
+}
+
+func (r *repository) UpdateUsersIsActiveByIds(ctx context.Context, ids []string, isActive bool) error {
+	logger := loggerPkg.LoggerFromContext(ctx)
+	_, err := r.db.ExecContext(ctx, UpdateUsersIsActiveByIdsQuery, isActive, pq.Array(ids))
+	if err != nil {
+		logger.Error("failed to bulk update is_active (UpdateUsersIsActiveByIds)", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (r *repository) FindNewReviewerExcluding(ctx context.Context, prId, authorId string, excludeUserIDs []string) (string, error) {
+	logger := loggerPkg.LoggerFromContext(ctx)
+
+	var reviewerId string
+	err := r.db.QueryRowContext(ctx, FindNewReviewerExcludingQuery, authorId, prId, pq.Array(excludeUserIDs)).Scan(&reviewerId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Info("no available reviewer (FindNewReviewerExcluding)", zap.String("pr_id", prId), zap.String("author_id", authorId))
+			return "", nil
+		}
+		logger.Error("failed to find new reviewer (FindNewReviewerExcluding)", zap.Error(err))
+		return "", err
+	}
 	return reviewerId, nil
 }

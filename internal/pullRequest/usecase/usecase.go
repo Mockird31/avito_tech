@@ -165,6 +165,22 @@ func (u *usecase) ReassignPullRequest(ctx context.Context, pullRequestReassign *
 		return nil, "", entity.ErrRequestAlreadyMerged
 	}
 
+	reviewers, err := u.PRRepository.GetReviewersByPrId(ctx, pullRequestReassign.Id)
+	if err != nil {
+		return nil, "", err
+	}
+	isAssigned := false
+	for _, r := range reviewers {
+		if r == pullRequestReassign.OldReviewerId {
+			isAssigned = true
+			break
+		}
+	}
+	if !isAssigned {
+		logger.Info("old reviewer is not assigned to PR (ReassignPullRequest)", zap.String("pr_id", pullRequestReassign.Id), zap.String("old_reviewer_id", pullRequestReassign.OldReviewerId))
+		return nil, "", entity.ErrUserNotFound
+	}
+
 	authorId, err := u.PRRepository.GetAuthorIdByPRId(ctx, pullRequestReassign.Id)
 	if err != nil {
 		return nil, "", err

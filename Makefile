@@ -19,4 +19,14 @@ generate-mocks:
 test:
 	./scripts/test.sh
 
-.PHONY: docker-up docker-remove docker-stop clean test
+e2e:
+	go test -count=1 -tags=e2e ./e2e
+
+run_linter:
+	golangci-lint run
+
+run_format:
+	go fmt ./...
+	goimports -w .
+
+.PHONY: docker-up docker-remove docker-stop clean test e2e run_format run_linter

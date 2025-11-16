@@ -7,6 +7,7 @@ import (
 	"github.com/Mockird31/avito_tech/internal/entity"
 	"github.com/Mockird31/avito_tech/internal/team"
 	json "github.com/Mockird31/avito_tech/pkg/json"
+	"github.com/asaskevich/govalidator"
 )
 
 type Handler struct {
@@ -25,6 +26,17 @@ func (h *Handler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	err := json.ReadJSON(w, r, &addTeamRequest)
 	if err != nil {
 		json.WriteErrorJson(w, http.StatusInternalServerError, "failed to parse request")
+		return
+	}
+
+	isValid, err := govalidator.ValidateStruct(addTeamRequest)
+	if err != nil {
+		json.WriteErrorJson(w, http.StatusBadRequest, "failed to parse request")
+		return
+	}
+
+	if !isValid {
+		json.WriteErrorJson(w, http.StatusBadRequest, "wrong json")
 		return
 	}
 

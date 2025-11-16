@@ -176,3 +176,229 @@ func TestGetUserReview_PRRepoError(t *testing.T) {
 	assert.Empty(t, id)
 	assert.EqualError(t, err, dbErr.Error())
 }
+
+func TestDeactivateTeamUsers_EmptyList(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{}}
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{}}, res)
+
+	prRepo.AssertNotCalled(t, "GetPullRequestsByReviewerId", mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "GetUsersByIds", mock.Anything, mock.Anything)
+}
+
+func TestDeactivateTeamUsers_GetUsersByIds_Error(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1", "u2"}}
+	dbErr := errors.New("db failure")
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1", "u2"}).
+		Return(nil, dbErr)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.EqualError(t, err, dbErr.Error())
+
+	prRepo.AssertNotCalled(t, "GetPullRequestsByReviewerId", mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateUsersIsActiveByIds", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestDeactivateTeamUsers_UserNotFound(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1", "u2"}}
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1", "u2"}).
+		Return(map[string]*entity.User{
+			"u1": {UserId: "u1", TeamName: "teamA", IsActive: true},
+		}, nil)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.ErrorIs(t, err, entity.ErrUserNotFound)
+
+	prRepo.AssertNotCalled(t, "GetPullRequestsByReviewerId", mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateUsersIsActiveByIds", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestDeactivateTeamUsers_UsersNotSameTeam(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1", "u2"}}
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1", "u2"}).
+		Return(map[string]*entity.User{
+			"u1": {UserId: "u1", TeamName: "teamA", IsActive: true},
+			"u2": {UserId: "u2", TeamName: "teamB", IsActive: true},
+		}, nil)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.ErrorIs(t, err, entity.ErrUsersNotSameTeam)
+
+	prRepo.AssertNotCalled(t, "GetPullRequestsByReviewerId", mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateUsersIsActiveByIds", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestDeactivateTeamUsers_Success_ReassignAndDeactivate(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1", "u2"}}
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1", "u2"}).
+		Return(map[string]*entity.User{
+			"u1": {UserId: "u1", TeamName: "teamA", IsActive: true},
+			"u2": {UserId: "u2", TeamName: "teamA", IsActive: true},
+		}, nil)
+
+	prRepo.EXPECT().
+		GetPullRequestsByReviewerId(mock.Anything, "u1").
+		Return([]*entity.PullRequestShort{
+			{Id: "pr1", PrName: "A", AuthorId: "a1", Status: "OPEN"},
+			{Id: "pr2", PrName: "B", AuthorId: "a2", Status: "MERGED"},
+		}, nil)
+
+	userRepo.EXPECT().
+		FindNewReviewerExcluding(mock.Anything, "pr1", "a1", []string{"u1", "u2"}).
+		Return("u3", nil)
+	prRepo.EXPECT().
+		UpdateReviewerId(mock.Anything, "pr1", "u1", "u3").
+		Return(nil)
+
+	prRepo.EXPECT().
+		GetPullRequestsByReviewerId(mock.Anything, "u2").
+		Return([]*entity.PullRequestShort{
+			{Id: "pr3", PrName: "C", AuthorId: "a3", Status: "OPEN"},
+		}, nil)
+	userRepo.EXPECT().
+		FindNewReviewerExcluding(mock.Anything, "pr3", "a3", []string{"u1", "u2"}).
+		Return("", nil)
+
+	userRepo.EXPECT().
+		UpdateUsersIsActiveByIds(mock.Anything, []string{"u1", "u2"}, false).
+		Return(nil)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.NoError(t, err)
+	assert.Equal(t, req, res)
+}
+
+func TestDeactivateTeamUsers_GetPRs_Error(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1"}}
+	dbErr := errors.New("select prs failed")
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1"}).
+		Return(map[string]*entity.User{"u1": {UserId: "u1", TeamName: "teamA"}}, nil)
+
+	prRepo.EXPECT().
+		GetPullRequestsByReviewerId(mock.Anything, "u1").
+		Return(nil, dbErr)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.EqualError(t, err, dbErr.Error())
+}
+
+func TestDeactivateTeamUsers_FindNewReviewer_Error(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1"}}
+	dbErr := errors.New("find reviewer failed")
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1"}).
+		Return(map[string]*entity.User{"u1": {UserId: "u1", TeamName: "teamA"}}, nil)
+
+	prRepo.EXPECT().
+		GetPullRequestsByReviewerId(mock.Anything, "u1").
+		Return([]*entity.PullRequestShort{
+			{Id: "pr1", PrName: "A", AuthorId: "a1", Status: "OPEN"},
+		}, nil)
+
+	userRepo.EXPECT().
+		FindNewReviewerExcluding(mock.Anything, "pr1", "a1", []string{"u1"}).
+		Return("", dbErr)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.EqualError(t, err, dbErr.Error())
+}
+
+func TestDeactivateTeamUsers_UpdateReviewer_Error(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1"}}
+	dbErr := errors.New("update reviewer failed")
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1"}).
+		Return(map[string]*entity.User{"u1": {UserId: "u1", TeamName: "teamA"}}, nil)
+
+	prRepo.EXPECT().
+		GetPullRequestsByReviewerId(mock.Anything, "u1").
+		Return([]*entity.PullRequestShort{
+			{Id: "pr1", PrName: "A", AuthorId: "a1", Status: "OPEN"},
+		}, nil)
+
+	userRepo.EXPECT().
+		FindNewReviewerExcluding(mock.Anything, "pr1", "a1", []string{"u1"}).
+		Return("u3", nil)
+
+	prRepo.EXPECT().
+		UpdateReviewerId(mock.Anything, "pr1", "u1", "u3").
+		Return(dbErr)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.EqualError(t, err, dbErr.Error())
+}
+
+func TestDeactivateTeamUsers_UpdateUsersIsActive_Error(t *testing.T) {
+	ctx := getTestContext()
+	uc, userRepo, prRepo := setupTest(t)
+
+	req := &entity.DeactivateUsers{TeamName: "teamA", UserIds: []string{"u1"}}
+	dbErr := errors.New("bulk deactivate failed")
+
+	userRepo.EXPECT().
+		GetUsersByIds(mock.Anything, []string{"u1"}).
+		Return(map[string]*entity.User{"u1": {UserId: "u1", TeamName: "teamA"}}, nil)
+
+	prRepo.EXPECT().
+		GetPullRequestsByReviewerId(mock.Anything, "u1").
+		Return([]*entity.PullRequestShort{}, nil)
+
+	userRepo.EXPECT().
+		UpdateUsersIsActiveByIds(mock.Anything, []string{"u1"}, false).
+		Return(dbErr)
+
+	res, err := uc.DeactivateTeamUsers(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.EqualError(t, err, dbErr.Error())
+}

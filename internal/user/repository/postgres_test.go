@@ -399,166 +399,286 @@ func TestSetIsActive_DBError(t *testing.T) {
 }
 
 func TestGetUserById_Success(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    userId := "u1"
-    rows := sqlmock.NewRows([]string{"id", "username", "team_name", "is_active"}).
-        AddRow("u1", "alice", "teamA", true)
+	userId := "u1"
+	rows := sqlmock.NewRows([]string{"id", "username", "team_name", "is_active"}).
+		AddRow("u1", "alice", "teamA", true)
 
-    mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
-        WithArgs(userId).
-        WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
+		WithArgs(userId).
+		WillReturnRows(rows)
 
-    u, err := repo.GetUserById(ctx, userId)
-    require.NoError(t, err)
-    require.NotNil(t, u)
-    assert.Equal(t, "u1", u.UserId)
-    assert.Equal(t, "alice", u.Username)
-    assert.Equal(t, "teamA", u.TeamName)
-    assert.Equal(t, true, u.IsActive)
+	u, err := repo.GetUserById(ctx, userId)
+	require.NoError(t, err)
+	require.NotNil(t, u)
+	assert.Equal(t, "u1", u.UserId)
+	assert.Equal(t, "alice", u.Username)
+	assert.Equal(t, "teamA", u.TeamName)
+	assert.Equal(t, true, u.IsActive)
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetUserById_NoRows(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    userId := "missing"
+	userId := "missing"
 
-    mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
-        WithArgs(userId).
-        WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
+		WithArgs(userId).
+		WillReturnError(sql.ErrNoRows)
 
-    u, err := repo.GetUserById(ctx, userId)
-    require.Error(t, err)
-    assert.Nil(t, u)
-    assert.ErrorIs(t, err, sql.ErrNoRows)
+	u, err := repo.GetUserById(ctx, userId)
+	require.Error(t, err)
+	assert.Nil(t, u)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetUserById_DBError(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    userId := "u1"
-    dbErr := errors.New("db failure")
+	userId := "u1"
+	dbErr := errors.New("db failure")
 
-    mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
-        WithArgs(userId).
-        WillReturnError(dbErr)
+	mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
+		WithArgs(userId).
+		WillReturnError(dbErr)
 
-    u, err := repo.GetUserById(ctx, userId)
-    require.Error(t, err)
-    assert.Nil(t, u)
-    assert.EqualError(t, err, dbErr.Error())
+	u, err := repo.GetUserById(ctx, userId)
+	require.Error(t, err)
+	assert.Nil(t, u)
+	assert.EqualError(t, err, dbErr.Error())
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetUserById_ScanError(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    userId := "u1"
-    rows := sqlmock.NewRows([]string{"id", "username", "team_name", "is_active"}).
-        AddRow("u1", "alice", "teamA", "not_bool")
+	userId := "u1"
+	rows := sqlmock.NewRows([]string{"id", "username", "team_name", "is_active"}).
+		AddRow("u1", "alice", "teamA", "not_bool")
 
-    mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
-        WithArgs(userId).
-        WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(GetUserByIdQuery)).
+		WithArgs(userId).
+		WillReturnRows(rows)
 
-    u, err := repo.GetUserById(ctx, userId)
-    require.Error(t, err)
-    assert.Nil(t, u)
+	u, err := repo.GetUserById(ctx, userId)
+	require.Error(t, err)
+	assert.Nil(t, u)
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestFindReviewers_Success(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    authorId := "author1"
+	authorId := "author1"
 
-    rows := sqlmock.NewRows([]string{"id"}).
-        AddRow("r1").
-        AddRow("r2")
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow("r1").
+		AddRow("r2")
 
-    mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
-        WithArgs(authorId).
-        WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
+		WithArgs(authorId).
+		WillReturnRows(rows)
 
-    reviewers, err := repo.FindReviewers(ctx, authorId)
-    require.NoError(t, err)
-    assert.Equal(t, []string{"r1", "r2"}, reviewers)
+	reviewers, err := repo.FindReviewers(ctx, authorId)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"r1", "r2"}, reviewers)
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestFindReviewers_NoRows(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    authorId := "author2"
+	authorId := "author2"
 
-    mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
-        WithArgs(authorId).
-        WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
+		WithArgs(authorId).
+		WillReturnError(sql.ErrNoRows)
 
-    reviewers, err := repo.FindReviewers(ctx, authorId)
-    require.NoError(t, err)
-    assert.Empty(t, reviewers)
+	reviewers, err := repo.FindReviewers(ctx, authorId)
+	require.NoError(t, err)
+	assert.Empty(t, reviewers)
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestFindReviewers_DBError(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    authorId := "author3"
-    dbErr := errors.New("db failure")
+	authorId := "author3"
+	dbErr := errors.New("db failure")
 
-    mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
-        WithArgs(authorId).
-        WillReturnError(dbErr)
+	mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
+		WithArgs(authorId).
+		WillReturnError(dbErr)
 
-    reviewers, err := repo.FindReviewers(ctx, authorId)
-    require.Error(t, err)
-    assert.Nil(t, reviewers)
-    assert.EqualError(t, err, dbErr.Error())
+	reviewers, err := repo.FindReviewers(ctx, authorId)
+	require.Error(t, err)
+	assert.Nil(t, reviewers)
+	assert.EqualError(t, err, dbErr.Error())
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestFindReviewers_RowsErr(t *testing.T) {
-    db, mock, repo := setupTest(t)
-    defer db.Close()
-    ctx := getTestContext()
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
 
-    authorId := "author5"
+	authorId := "author5"
 
-    rows := sqlmock.NewRows([]string{"id"}).
-        AddRow("r1").
-        RowError(0, errors.New("row iteration error"))
+	rows := sqlmock.NewRows([]string{"id"}).
+		AddRow("r1").
+		RowError(0, errors.New("row iteration error"))
 
-    mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
-        WithArgs(authorId).
-        WillReturnRows(rows)
+	mock.ExpectQuery(regexp.QuoteMeta(FindReviewersQuery)).
+		WithArgs(authorId).
+		WillReturnRows(rows)
 
-    reviewers, err := repo.FindReviewers(ctx, authorId)
-    require.Error(t, err)
-    assert.Nil(t, reviewers)
+	reviewers, err := repo.FindReviewers(ctx, authorId)
+	require.Error(t, err)
+	assert.Nil(t, reviewers)
 
-    require.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateUsersIsActiveByIds_Success(t *testing.T) {
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
+
+	ids := []string{"u1", "u2"}
+	isActive := false
+
+	mock.ExpectExec(regexp.QuoteMeta(UpdateUsersIsActiveByIdsQuery)).
+		WithArgs(isActive, sqlmock.AnyArg()). // pq.Array(ids)
+		WillReturnResult(sqlmock.NewResult(0, int64(len(ids))))
+
+	err := repo.UpdateUsersIsActiveByIds(ctx, ids, isActive)
+	require.NoError(t, err)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateUsersIsActiveByIds_DBError(t *testing.T) {
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
+
+	ids := []string{"u1"}
+	isActive := true
+	dbErr := errors.New("bulk update failed")
+
+	mock.ExpectExec(regexp.QuoteMeta(UpdateUsersIsActiveByIdsQuery)).
+		WithArgs(isActive, sqlmock.AnyArg()). // pq.Array(ids)
+		WillReturnError(dbErr)
+
+	err := repo.UpdateUsersIsActiveByIds(ctx, ids, isActive)
+	require.Error(t, err)
+	assert.EqualError(t, err, dbErr.Error())
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateUsersIsActiveByIds_EmptyIDs(t *testing.T) {
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
+
+	var ids []string
+	isActive := false
+
+	mock.ExpectExec(regexp.QuoteMeta(UpdateUsersIsActiveByIdsQuery)).
+		WithArgs(isActive, sqlmock.AnyArg()). // pq.Array(empty)
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err := repo.UpdateUsersIsActiveByIds(ctx, ids, isActive)
+	require.NoError(t, err)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestFindNewReviewerExcluding_Success(t *testing.T) {
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
+
+	prID := "pr1"
+	authorID := "a1"
+	exclude := []string{"u1", "u2"}
+
+	rows := sqlmock.NewRows([]string{"id"}).AddRow("u3")
+
+	mock.ExpectQuery(regexp.QuoteMeta(FindNewReviewerExcludingQuery)).
+		WithArgs(authorID, prID, sqlmock.AnyArg()). // pq.Array(exclude)
+		WillReturnRows(rows)
+
+	reviewerID, err := repo.FindNewReviewerExcluding(ctx, prID, authorID, exclude)
+	require.NoError(t, err)
+	assert.Equal(t, "u3", reviewerID)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestFindNewReviewerExcluding_NoRows(t *testing.T) {
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
+
+	prID := "pr2"
+	authorID := "a2"
+	exclude := []string{"u1"}
+
+	mock.ExpectQuery(regexp.QuoteMeta(FindNewReviewerExcludingQuery)).
+		WithArgs(authorID, prID, sqlmock.AnyArg()).
+		WillReturnError(sql.ErrNoRows)
+
+	reviewerID, err := repo.FindNewReviewerExcluding(ctx, prID, authorID, exclude)
+	require.NoError(t, err)
+	assert.Empty(t, reviewerID)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestFindNewReviewerExcluding_DBError(t *testing.T) {
+	db, mock, repo := setupTest(t)
+	defer db.Close()
+	ctx := getTestContext()
+
+	prID := "pr3"
+	authorID := "a3"
+	exclude := []string{"u9"}
+	dbErr := errors.New("select failed")
+
+	mock.ExpectQuery(regexp.QuoteMeta(FindNewReviewerExcludingQuery)).
+		WithArgs(authorID, prID, sqlmock.AnyArg()).
+		WillReturnError(dbErr)
+
+	reviewerID, err := repo.FindNewReviewerExcluding(ctx, prID, authorID, exclude)
+	require.Error(t, err)
+	assert.Empty(t, reviewerID)
+	assert.EqualError(t, err, dbErr.Error())
+
+	require.NoError(t, mock.ExpectationsWereMet())
 }

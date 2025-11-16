@@ -52,7 +52,7 @@ const (
     `
 	UpdateReviewerIdQuery = `
 		UPDATE pull_request_reviewers
-		SET reviewer_id = $1
+		SET reviewer_id = $1, updated_at = NOW()
 		WHERE pull_request_id = $2 AND reviewer_id = $3;
 	`
 	GetPullRequestsByReviewerIdQuery = `
@@ -108,6 +108,7 @@ func (r *repository) GetReviewersByPrId(ctx context.Context, prId string) ([]str
 		closeErr := rows.Close()
 		if closeErr != nil && err == nil {
 			err = closeErr
+			logger.Error("failed to close rows", zap.Error(err))
 		}
 	}()
 
@@ -290,6 +291,7 @@ func (r *repository) GetPullRequestsByReviewerId(ctx context.Context, reviewerId
 		closeErr := rows.Close()
 		if closeErr != nil && err == nil {
 			err = closeErr
+			logger.Error("failed to close rows", zap.Error(err))
 		}
 	}()
 

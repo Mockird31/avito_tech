@@ -56,9 +56,12 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}, headers http
 }
 
 func WriteErrorJson(w http.ResponseWriter, status int, errorMessage string) {
-	errorResponse := &entity.ErrorResponse{
+	error := &entity.Error{
 		Code:    status,
 		Message: errorMessage,
+	}
+	errorResponse := &entity.ErrorResponse{
+		Error: error,
 	}
 	WriteJSON(w, status, errorResponse, nil)
 }

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/asaskevich/govalidator"
+
 	"github.com/Mockird31/avito_tech/internal/entity"
 	pullrequest "github.com/Mockird31/avito_tech/internal/pullRequest"
 	json "github.com/Mockird31/avito_tech/pkg/json"
@@ -26,7 +28,18 @@ func (h *Handler) CreatePullRequest(w http.ResponseWriter, r *http.Request) {
 
 	err := json.ReadJSON(w, r, &createPullRequest)
 	if err != nil {
-		json.WriteErrorJson(w, http.StatusInternalServerError, "failed to parse request")
+		json.WriteErrorJson(w, http.StatusBadRequest, "failed to parse request")
+		return
+	}
+
+	isValid, err := govalidator.ValidateStruct(createPullRequest)
+	if err != nil {
+		json.WriteErrorJson(w, http.StatusBadRequest, "failed to parse request")
+		return
+	}
+
+	if !isValid {
+		json.WriteErrorJson(w, http.StatusBadRequest, "wrong json")
 		return
 	}
 
@@ -59,6 +72,17 @@ func (h *Handler) MergePullRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isValid, err := govalidator.ValidateStruct(mergePullRequest)
+	if err != nil {
+		json.WriteErrorJson(w, http.StatusBadRequest, "failed to parse request")
+		return
+	}
+
+	if !isValid {
+		json.WriteErrorJson(w, http.StatusBadRequest, "wrong json")
+		return
+	}
+
 	pullRequest, err := h.usecase.MergePullRequest(ctx, &mergePullRequest)
 	if err != nil {
 		var statusCode int
@@ -83,6 +107,17 @@ func (h *Handler) ReassignPullRequest(w http.ResponseWriter, r *http.Request) {
 	err := json.ReadJSON(w, r, &reassignPullRequest)
 	if err != nil {
 		json.WriteErrorJson(w, http.StatusInternalServerError, "failed to parse request")
+		return
+	}
+
+	isValid, err := govalidator.ValidateStruct(reassignPullRequest)
+	if err != nil {
+		json.WriteErrorJson(w, http.StatusBadRequest, "failed to parse request")
+		return
+	}
+
+	if !isValid {
+		json.WriteErrorJson(w, http.StatusBadRequest, "wrong json")
 		return
 	}
 

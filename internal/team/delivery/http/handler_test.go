@@ -33,7 +33,7 @@ func TestHandler_AddTeam(t *testing.T) {
 			},
 			mockSetup:      func(m *mock_team.MockIUsecase) {},
 			wantStatusCode: http.StatusInternalServerError,
-			wantBody:       `{"code":500,"message":"failed to parse request"}`,
+			wantBody:       `{"error":{"code":500,"message":"failed to parse request"}}`,
 		},
 		{
 			name: "usecase_error",
@@ -46,7 +46,7 @@ func TestHandler_AddTeam(t *testing.T) {
 					Return(nil, entity.ErrTeamNameExist)
 			},
 			wantStatusCode: http.StatusNotFound,
-			wantBody:       `{"code":404,"message":"team_name already exists"}`,
+			wantBody:       `{"error":{"code":404,"message":"team_name already exists"}}`,
 		},
 		{
 			name: "success",
@@ -119,7 +119,7 @@ func TestHandler_GetTeam(t *testing.T) {
 			query:          "",
 			mockSetup:      func(m *mock_team.MockIUsecase) {},
 			wantStatusCode: http.StatusNotFound,
-			wantBody:       `{"code":404,"message":"NOT_FOUND"}`,
+			wantBody:       `{"error":{"code":404,"message":"NOT_FOUND"}}`,
 		},
 		{
 			name:  "usecase_error",
@@ -130,7 +130,7 @@ func TestHandler_GetTeam(t *testing.T) {
 					Return(nil, entity.ErrTeamNameNotFound)
 			},
 			wantStatusCode: http.StatusNotFound,
-			wantBody:       `{"code":404,"message":"resource not found"}`,
+			wantBody:       `{"error":{"code":404,"message":"resource not found"}}`,
 		},
 		{
 			name:  "success",

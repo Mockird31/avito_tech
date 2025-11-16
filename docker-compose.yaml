@@ -20,6 +20,7 @@ services:
     volumes:
       - 'pgdata:/var/lib/postgresql'
       - './deploy/_postgres:/docker-entrypoint-initdb.d'
+      - './data_csv:/home/csv'
     tty: true
 
   go-api:

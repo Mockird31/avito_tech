@@ -1,6 +1,10 @@
 package entity
 
 type ErrorResponse struct {
+	Error *Error `json:"error"`
+}
+
+type Error struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
@@ -22,7 +26,10 @@ type PullRequestReassignResponse struct {
 	ReplacedBy  string       `json:"replaced_by"`
 }
 
-type ReviewerPullRequests struct {
-	UserId       string              `json:"user_id"`
-	PullRequests []*PullRequestShort `json:"pull_requests"`
+type AssignmentStatsResponse struct {
+	Statistics []*UserAssignmentCount `json:"statistics"`
+}
+
+type DeactivateUsersResponse struct {
+	DeactivateUsers *DeactivateUsers `json:"deactivate_users"`
 }

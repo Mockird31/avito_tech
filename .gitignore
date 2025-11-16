@@ -41,3 +41,6 @@ coverage.out
 coverage.tmp
 
 mocks/
+
+scripts/data
+scripts/gen

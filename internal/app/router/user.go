@@ -24,5 +24,6 @@ func UserRouter(r *mux.Router, postgresConn *sql.DB) *mux.Router {
 	sr := r.PathPrefix("/users").Subrouter()
 	sr.HandleFunc("/setIsActive", userHttp.SetUserIsActive).Methods(http.MethodPost)
 	sr.HandleFunc("/getReview", userHttp.GetUserReviews).Methods(http.MethodGet)
+	sr.HandleFunc("/deactivate", userHttp.DeactivateTeamUsers).Methods(http.MethodPost)
 	return sr
 }
