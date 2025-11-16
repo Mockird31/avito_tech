@@ -17,6 +17,6 @@ generate-mocks:
 	mockery
 
 test:
-	cd scripts && ./test.sh
+	./scripts/test.sh
 
 .PHONY: docker-up docker-remove docker-stop clean test

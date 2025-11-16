@@ -45,19 +45,6 @@ const (
 		FROM "user"
 		WHERE id = $1;
 	`
-	// FindReviewersQuery = `
-	//     WITH sampled AS (
-	// 		SELECT id, team_name, is_active
-	// 		FROM "user" TABLESAMPLE SYSTEM_ROWS (50)
-	// 	)
-	// 	SELECT s.id
-	// 	FROM sampled s
-	// 	JOIN "user" author ON author.id = $1
-	// 	WHERE s.team_name = author.team_name
-	// 	AND s.id <> $1
-	// 	AND s.is_active = TRUE
-	// 	LIMIT 2;
-	// `
 	FindReviewersQuery = `
         SELECT u.id
         FROM "user" u

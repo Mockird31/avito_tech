@@ -57,7 +57,7 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}, headers http
 
 func WriteErrorJson(w http.ResponseWriter, status int, errorMessage string) {
 	errorResponse := &entity.ErrorResponse{
-		Code: status,
+		Code:    status,
 		Message: errorMessage,
 	}
 	WriteJSON(w, status, errorResponse, nil)

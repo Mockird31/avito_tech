@@ -11,21 +11,21 @@ import (
 	"go.uber.org/zap"
 )
 
-type Usecase struct {
+type usecase struct {
 	PRRepository   pullrequest.IRepository
 	UserRepository user.IRepository
 	TeamRepository team.IRepository
 }
 
 func NewUsecase(PRRepository pullrequest.IRepository, UserRepository user.IRepository, TeamRepository team.IRepository) pullrequest.IUsecase {
-	return &Usecase{
+	return &usecase{
 		PRRepository:   PRRepository,
 		UserRepository: UserRepository,
 		TeamRepository: TeamRepository,
 	}
 }
 
-func (u *Usecase) GetPullRequestById(ctx context.Context, prId string) (*entity.PullRequest, error) {
+func (u *usecase) GetPullRequestById(ctx context.Context, prId string) (*entity.PullRequest, error) {
 	pullrequest, err := u.PRRepository.GetPullRequestById(ctx, prId)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func (u *Usecase) GetPullRequestById(ctx context.Context, prId string) (*entity.
 	return pullrequest, nil
 }
 
-func (u *Usecase) CreatePullRequest(ctx context.Context, pullRequestCreate *entity.PullRequest) (*entity.PullRequest, error) {
+func (u *usecase) CreatePullRequest(ctx context.Context, pullRequestCreate *entity.PullRequest) (*entity.PullRequest, error) {
 	logger := loggerPkg.LoggerFromContext(ctx)
 
 	isExist, err := u.PRRepository.CheckPullRequestExistById(ctx, pullRequestCreate.Id)
@@ -101,7 +101,7 @@ func (u *Usecase) CreatePullRequest(ctx context.Context, pullRequestCreate *enti
 	return pullRequest, nil
 }
 
-func (u *Usecase) MergePullRequest(ctx context.Context, pullRequestMerge *entity.PullRequest) (*entity.PullRequest, error) {
+func (u *usecase) MergePullRequest(ctx context.Context, pullRequestMerge *entity.PullRequest) (*entity.PullRequest, error) {
 	logger := loggerPkg.LoggerFromContext(ctx)
 
 	isExist, err := u.PRRepository.CheckPullRequestExistById(ctx, pullRequestMerge.Id)
@@ -134,7 +134,7 @@ func (u *Usecase) MergePullRequest(ctx context.Context, pullRequestMerge *entity
 	return pullRequest, nil
 }
 
-func (u *Usecase) ReassignPullRequest(ctx context.Context, pullRequestReassign *entity.PullRequestReassignRequest) (*entity.PullRequest, string, error) {
+func (u *usecase) ReassignPullRequest(ctx context.Context, pullRequestReassign *entity.PullRequestReassignRequest) (*entity.PullRequest, string, error) {
 	logger := loggerPkg.LoggerFromContext(ctx)
 
 	isExist, err := u.PRRepository.CheckPullRequestExistById(ctx, pullRequestReassign.Id)

@@ -11,19 +11,19 @@ import (
 	loggerPkg "github.com/Mockird31/avito_tech/pkg/logger"
 )
 
-type Usecase struct {
+type usecase struct {
 	UserRepository user.IRepository
 	PRRepository   pullrequest.IRepository
 }
 
 func NewUsecase(userRepository user.IRepository, PRRepository pullrequest.IRepository) user.IUsecase {
-	return &Usecase{
+	return &usecase{
 		UserRepository: userRepository,
 		PRRepository:   PRRepository,
 	}
 }
 
-func (u *Usecase) SetIsActive(ctx context.Context, userUpdateActive *entity.UserUpdateActive) (*entity.User, error) {
+func (u *usecase) SetIsActive(ctx context.Context, userUpdateActive *entity.UserUpdateActive) (*entity.User, error) {
 	isExist, err := u.UserRepository.CheckUserExistById(ctx, userUpdateActive.UserId)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (u *Usecase) SetIsActive(ctx context.Context, userUpdateActive *entity.User
 	return user, nil
 }
 
-func (u *Usecase) GetUserReview(ctx context.Context, userId string) ([]*entity.PullRequestShort, string, error) {
+func (u *usecase) GetUserReview(ctx context.Context, userId string) ([]*entity.PullRequestShort, string, error) {
 	logger := loggerPkg.LoggerFromContext(ctx)
 
 	isExist, err := u.UserRepository.CheckUserExistById(ctx, userId)

@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,7 +23,7 @@ func TestHandler_AddTeam(t *testing.T) {
 		args           args
 		mockSetup      func(m *mock_team.MockIUsecase)
 		wantStatusCode int
-		wantTeam       *entity.Team
+		wantTeam       *entity.TeamResponse
 		wantBody       string
 	}{
 		{
@@ -34,7 +33,7 @@ func TestHandler_AddTeam(t *testing.T) {
 			},
 			mockSetup:      func(m *mock_team.MockIUsecase) {},
 			wantStatusCode: http.StatusInternalServerError,
-			wantBody:       `"failed to parse request"`,
+			wantBody:       `{"code":500,"message":"failed to parse request"}`,
 		},
 		{
 			name: "usecase_error",
@@ -44,10 +43,10 @@ func TestHandler_AddTeam(t *testing.T) {
 			mockSetup: func(m *mock_team.MockIUsecase) {
 				m.EXPECT().
 					AddTeam(mock.Anything, mock.AnythingOfType("*entity.Team")).
-					Return(nil, errors.New("team_name already exists"))
+					Return(nil, entity.ErrTeamNameExist)
 			},
 			wantStatusCode: http.StatusNotFound,
-			wantBody:       `"team_name already exists"`,
+			wantBody:       `{"code":404,"message":"team_name already exists"}`,
 		},
 		{
 			name: "success",
@@ -67,13 +66,13 @@ func TestHandler_AddTeam(t *testing.T) {
 					Return(res, nil)
 			},
 			wantStatusCode: http.StatusCreated,
-			wantTeam: &entity.Team{
+			wantTeam: &entity.TeamResponse{Team: &entity.Team{
 				TeamName: "alpha",
 				Members: []*entity.TeamMember{
 					{UserID: "u1", Username: "alice", IsActive: true},
 					{UserID: "u2", Username: "bob", IsActive: false},
 				},
-			},
+			}},
 		},
 	}
 
@@ -95,7 +94,7 @@ func TestHandler_AddTeam(t *testing.T) {
 			require.Equal(t, tt.wantStatusCode, rr.Code)
 
 			if tt.wantTeam != nil {
-				var got entity.Team
+				var got entity.TeamResponse
 				require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &got))
 				assert.Equal(t, tt.wantTeam, &got)
 			}
@@ -120,7 +119,7 @@ func TestHandler_GetTeam(t *testing.T) {
 			query:          "",
 			mockSetup:      func(m *mock_team.MockIUsecase) {},
 			wantStatusCode: http.StatusNotFound,
-			wantBody:       `"NOT_FOUND"`,
+			wantBody:       `{"code":404,"message":"NOT_FOUND"}`,
 		},
 		{
 			name:  "usecase_error",
@@ -128,10 +127,10 @@ func TestHandler_GetTeam(t *testing.T) {
 			mockSetup: func(m *mock_team.MockIUsecase) {
 				m.EXPECT().
 					GetTeam(mock.Anything, "alpha").
-					Return(nil, errors.New("NOT_FOUND"))
+					Return(nil, entity.ErrTeamNameNotFound)
 			},
 			wantStatusCode: http.StatusNotFound,
-			wantBody:       `"NOT_FOUND"`,
+			wantBody:       `{"code":404,"message":"resource not found"}`,
 		},
 		{
 			name:  "success",

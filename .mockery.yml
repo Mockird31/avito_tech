@@ -28,3 +28,9 @@ packages:
       dir: ./
       filename: mocks/{{.SrcPackageName}}/mock_{{.SrcPackageName}}_{{.InterfaceName}}.go
       pkgname: mock_{{.SrcPackageName}}
+  github.com/Mockird31/avito_tech/internal/pullRequest:
+    config:
+      all: true
+      dir: ./
+      filename: mocks/{{.SrcPackageName}}/mock_{{.SrcPackageName}}_{{.InterfaceName}}.go
+      pkgname: mock_{{.SrcPackageName}}

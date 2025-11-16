@@ -8,19 +8,19 @@ import (
 	"github.com/Mockird31/avito_tech/internal/user"
 )
 
-type Usecase struct {
+type usecase struct {
 	TeamRepository team.IRepository
 	UserRepository user.IRepository
 }
 
 func NewUsecase(teamRepository team.IRepository, userRepository user.IRepository) team.IUsecase {
-	return &Usecase{
+	return &usecase{
 		TeamRepository: teamRepository,
 		UserRepository: userRepository,
 	}
 }
 
-func (u *Usecase) AddTeam(ctx context.Context, team *entity.Team) (*entity.Team, error) {
+func (u *usecase) AddTeam(ctx context.Context, team *entity.Team) (*entity.Team, error) {
 	isExist, err := u.TeamRepository.CheckTeamNameExist(ctx, team.TeamName)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (u *Usecase) AddTeam(ctx context.Context, team *entity.Team) (*entity.Team,
 	return team, nil
 }
 
-func (u *Usecase) GetTeam(ctx context.Context, teamName string) (*entity.Team, error) {
+func (u *usecase) GetTeam(ctx context.Context, teamName string) (*entity.Team, error) {
 	isExist, err := u.TeamRepository.CheckTeamNameExist(ctx, teamName)
 	if err != nil {
 		return nil, err

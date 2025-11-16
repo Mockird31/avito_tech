@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/Mockird31/avito_tech/internal/entity"
@@ -28,7 +27,7 @@ func (h *Handler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		json.WriteErrorJson(w, http.StatusInternalServerError, "failed to parse request")
 		return
 	}
-	fmt.Println(addTeamRequest.TeamName)
+
 	resultTeam, err := h.usecase.AddTeam(ctx, &addTeamRequest)
 	if err != nil {
 		var statusCode int
@@ -38,6 +37,7 @@ func (h *Handler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		default:
 			statusCode = http.StatusInternalServerError
 		}
+
 		json.WriteErrorJson(w, statusCode, err.Error())
 		return
 	}
